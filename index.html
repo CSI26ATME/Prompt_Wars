@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusCare</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#edf3f8;color:#10213b}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0;border-radius:9px;padding:12px 20px;background:#0eaaa5;color:white;font-weight:bold}
+input,select,textarea{width:100%;padding:13px;margin:8px 0 15px;border:1px solid #ccd8e5;border-radius:9px}
+.auth{max-width:440px;margin:45px auto;background:white;padding:30px;border-radius:20px}
+.auth h1{text-align:center;color:#0eaaa5}
+.hidden{display:none!important}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:250px;background:#091832;color:white;padding:22px}
+.sidebar button{display:block;width:100%;margin:12px 0;text-align:left;background:transparent}
+.sidebar button:hover{background:#12334b}
+main{flex:1;padding:35px;min-width:0}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:25px 0}
+.card{background:white;padding:23px;border-radius:15px;box-shadow:0 3px 12px #0001}
+.card h2{margin:0 0 10px;color:#0eaaa5}
+.panel{background:white;padding:25px;border-radius:15px;margin:20px 0}
+.complaint{background:white;padding:20px;border-radius:12px;margin:15px 0;box-shadow:0 3px 10px #0001}
+.status{font-weight:bold;color:#d58b00}
+.small{color:#66758b;font-size:13px}
+@media(max-width:750px){.layout{display:block}.sidebar{width:100%}.cards{grid-template-columns:repeat(2,1fr)}main{padding:15px}}
+</style>
+</head>
+<body>
+
+<div id="auth" class="auth">
+<h1>CampusCare 🎓</h1>
+<p style="text-align:center">Smart College Complaint Management System</p>
+<div style="display:flex;gap:10px">
+<button onclick="showAuth('login')">Login</button>
+<button onclick="showAuth('register')">Register</button>
+</div>
+<form id="registerForm">
+<h3>Student Registration</h3>
+<input id="name" placeholder="Full Name" required>
+<input id="email" type="email" placeholder="Email Address" required>
+<input id="password" type="password" placeholder="Password" required>
+<input id="usn" placeholder="University Seat Number" required>
+<input id="department" placeholder="Department" required>
+<select id="year" required>
+<option value="">Select Year</option>
+<option>1st Year</option><option>2nd Year</option>
+<option>3rd Year</option><option>4th Year</option>
+</select>
+<button style="width:100%">Create Account</button>
+</form>
+<form id="loginForm" class="hidden">
+<h3>Login</h3>
+<input id="loginEmail" type="email" placeholder="Email" required>
+<input id="loginPassword" type="password" placeholder="Password" required>
+<button style="width:100%">Login</button>
+</form>
+<p class="small">Demo Admin: admin@campus.edu<br>Password: Admin@123</p>
+</div>
+
+<div id="app" class="layout hidden">
+<aside class="sidebar">
+<h2>🎓 CampusCare</h2>
+<p id="profile"></p>
+<button onclick="page('dashboard')">▦ Dashboard</button>
+<button id="newBtn" onclick="page('new')">＋ New Complaint</button>
+<button onclick="page('track')">☷ Track Complaints</button>
+<button id="analyticsBtn" onclick="page('analytics')" class="hidden">▥ Analytics</button>
+<button onclick="logout()">⇥ Sign Out</button>
+</aside>
+<main id="content"></main>
+</div>
+
+<script>
+const ADMIN="admin@campus.edu";
+let current=null;
+let complaints=JSON.parse(localStorage.getItem("complaints")||"[]");
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+
+function save(){
+localStorage.setItem("complaints",JSON.stringify(complaints));
+localStorage.setItem("users",JSON.stringify(users));
+}
+function showAuth(type){
+document.getElementById("registerForm").classList.toggle("hidden",type!=="register");
+document.getElementById("loginForm").classList.toggle("hidden",type!=="login");
+}
+document.getElementById("registerForm").onsubmit=e=>{
+e.preventDefault();
+let email=document.getElementById("email").value.trim().toLowerCase();
+if(email===ADMIN){alert("Use another email");return}
+if(users.some(u=>u.email===email)){alert("Email already registered");return}
+users.push({
+name:name.value,email,password:password.value,
+usn:usn.value,department:department.value,year:year.value
+});
+save();
+alert("Registration successful! Please login.");
+e.target.reset();showAuth("login");
+};
+document.getElementById("loginForm").onsubmit=e=>{
+e.preventDefault();
+let email=loginEmail.value.trim().toLowerCase();
+let pass=loginPassword.value;
+if(email===ADMIN&&pass==="Admin@123"){
+current={name:"Administrator",email:ADMIN,role:"admin"};
+}else{
+let user=users.find(u=>u.email===email&&u.password===pass);
+if(!user){alert("Invalid email or password");return}
+current={...user,role:"student"};
+}
+openApp();
+};
+function openApp(){
+auth.classList.add("hidden");
+app.classList.remove("hidden");
+profile.innerHTML=current.name+"<br>"+current.role.toUpperCase();
+analyticsBtn.classList.toggle("hidden",current.role!=="admin");
+newBtn.classList.toggle("hidden",current.role==="admin");
+page("dashboard");
+}
+function logout(){
+current=null;app.classList.add("hidden");auth.classList.remove("hidden");showAuth("login");
+}
+function page(p){
+let admin=current.role==="admin";
+let mine=admin?complaints:complaints.filter(c=>c.email===current.email);
+let html="";
+if(p==="dashboard"){
+html=`<h1>Welcome, ${current.name} 👋</h1>
+<p>Campus Complaint Management Dashboard</p>
+<div class="cards">
+<div class="card"><h2>${mine.length}</h2>Total Complaints</div>
+<div class="card"><h2>${mine.filter(c=>c.status==="Pending").length}</h2>Pending</div>
+<div class="card"><h2>${mine.filter(c=>c.status==="In Progress").length}</h2>In Progress</div>
+<div class="card"><h2>${mine.filter(c=>c.status==="Resolved").length}</h2>Resolved</div>
+</div>
+<button onclick="page('${admin?'track':'new'}')">${admin?'View Complaints':'File a New Complaint'}</button>
+<h2>Recent Complaints</h2>${render(mine.slice(-5).reverse(),admin)}`;
+}
+if(p==="new"&&!admin){
+html=`<h1>Submit New Complaint</h1><div class="panel">
+<form id="complaintForm">
+<label>Complaint Category</label>
+<select id="category" required>
+<option value="">Select Category</option>
+<option>Classroom</option><option>Laboratory</option>
+<option>Library</option><option>Hostel</option>
+<option>Washroom</option><option>Electricity</option>
+<option>Water Supply</option><option>Other</option>
+</select>
+<label>Location</label><input id="location" placeholder="Block / Room Number" required>
+<label>Description</label><textarea id="description" placeholder="Describe your issue..." required></textarea>
+<button>Submit Complaint</button>
+</form></div>`;
+}
+if(p==="track"){
+html=`<h1>${admin?'All Student Complaints':'Track Complaints'}</h1>
+<input id="search" placeholder="Search by complaint ID or category" oninput="filterList()">
+<div id="complaintList">${render(mine.slice().reverse(),admin)}</div>`;
+}
+if(p==="analytics"&&admin){
+html=`<h1>Complaint Analytics</h1><div class="cards">
+<div class="card"><h2>${complaints.length}</h2>Total</div>
+<div class="card"><h2>${complaints.filter(c=>c.status==="Pending").length}</h2>Pending</div>
+<div class="card"><h2>${complaints.filter(c=>c.status==="In Progress").length}</h2>In Progress</div>
+<div class="card"><h2>${complaints.filter(c=>c.status==="Resolved").length}</h2>Resolved</div>
+</div><div class="panel"><h3>Category-wise Complaints</h3>
+${[...new Set(complaints.map(c=>c.category))].map(cat=>`<p>${cat}: ${complaints.filter(c=>c.category===cat).length}</p>`).join("")||"No data yet"}
+</div>`;
+}
+content.innerHTML=html;
+if(p==="new"&&!admin){
+complaintForm.onsubmit=e=>{
+e.preventDefault();
+let id="CC-"+Date.now().toString().slice(-8);
+complaints.push({
+id,email:current.email,name:current.name,
+category:category.value,location:location.value,
+description:description.value,status:"Pending",
+date:new Date().toLocaleDateString()
+});
+save();alert("Complaint submitted! ID: "+id);page("dashboard");
+};
+}
+}
+function render(list,admin){
+if(!list.length)return `<div class="panel">No complaints found.</div>`;
+return list.map(c=>`<div class="complaint">
+<strong>${c.id}</strong>
+<span class="status" style="float:right">${c.status}</span>
+<h3>${c.category}</h3>
+<p>${c.description}</p>
+<p>📍 ${c.location}</p>
+<p class="small">Student: ${c.name} | ${c.email} | ${c.date}</p>
+${admin?`<label>Update Status</label>
+<select onchange="updateStatus('${c.id}',this.value)">
+${["Pending","In Progress","Resolved"].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join("")}
+</select>`:""}
+</div>`).join("");
+}
+function updateStatus(id,status){
+let c=complaints.find(x=>x.id===id);
+if(c){c.status=status;save();page("track");}
+}
+function filterList(){
+let q=search.value.toLowerCase();
+let list=current.role==="admin"?complaints:complaints.filter(c=>c.email===current.email);
+list=list.filter(c=>(c.id+c.category+c.name+c.usn).toLowerCase().includes(q));
+complaintList.innerHTML=render(list,true);
+}
+showAuth("register");
+</script>
+</body>
+</html>
